@@ -9,34 +9,40 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface UrlClickRepository extends JpaRepository<UrlClick, Long> {
     List<UrlClick> findByUrl(Url url);
     List<UrlClick> findByUrlOrderByClickedAtDesc(Url url);
+    List<UrlClick> findByUrlShortCode(String shortCode);
 
-    @Query("SELECT COUNT(c) FROM UrlClick c WHERE c.url = :url")
-    Long countByUrl(@Param("url") Url url);
+    @Query("SELECT COUNT(c) FROM UrlClick c WHERE c.url.id = :urlId")
+    int countByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT COUNT(c) FROM UrlClick c WHERE c.url = :url AND c.clickedAt BETWEEN :start AND :end")
-    Long countByUrlAndClickedAtBetween(
-            @Param("url") Url url,
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end
-    );
+    @Query("SELECT MAX(c.clickedAt) FROM UrlClick c WHERE c.url.id = :urlId")
+    LocalDateTime findLastClickTimeByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT c.country, COUNT(c) FROM UrlClick c WHERE c.url = :url GROUP BY c.country ORDER BY COUNT(c) DESC")
-    List<Object[]> countByCountry(@Param("url") Url url);
+    @Query("SELECT c.country FROM UrlClick c WHERE c.url.id = :urlId " +
+            "GROUP BY c.country ORDER BY COUNT(c) DESC")
+    List<String> findTopCountryByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT c.city, COUNT(c) FROM UrlClick c WHERE c.url = :url GROUP BY c.city ORDER BY COUNT(c) DESC")
-    List<Object[]> countByCity(@Param("url") Url url);
+    @Query("SELECT c.city FROM UrlClick c WHERE c.url.id = :urlId " +
+            "GROUP BY c.city ORDER BY COUNT(c) DESC")
+    List<String> findTopCityByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT c.deviceType, COUNT(c) FROM UrlClick c WHERE c.url = :url GROUP BY c.deviceType")
-    List<Object[]> countByDeviceType(@Param("url") Url url);
+    @Query("SELECT c.browser FROM UrlClick c WHERE c.url.id = :urlId " +
+            "GROUP BY c.browser ORDER BY COUNT(c) DESC")
+    List<String> findTopBrowserByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT c.browser, COUNT(c) FROM UrlClick c WHERE c.url = :url GROUP BY c.browser ORDER BY COUNT(c) DESC")
-    List<Object[]> countByBrowser(@Param("url") Url url);
+    @Query("SELECT c.deviceType FROM UrlClick c WHERE c.url.id = :urlId " +
+            "GROUP BY c.deviceType ORDER BY COUNT(c) DESC")
+    List<String> findTopDeviceByUrlId(@Param("urlId") Long urlId);
 
-    @Query("SELECT c.referrer, COUNT(c) FROM UrlClick c WHERE c.url = :url AND c.referrer IS NOT NULL GROUP BY c.referrer ORDER BY COUNT(c) DESC")
-    List<Object[]> countByReferrer(@Param("url") Url url);
+    // Efficient batch query - get analytics for multiple URLs at once
+    @Query("SELECT c.url.id as urlId, COUNT(c) as clickCount, " +
+            "MAX(c.clickedAt) as lastClick " +
+            "FROM UrlClick c WHERE c.url.id IN :urlIds " +
+            "GROUP BY c.url.id")
+    List<Map<String, Object>> findAnalyticsSummaryForUrls(@Param("urlIds") List<Long> urlIds);
 }

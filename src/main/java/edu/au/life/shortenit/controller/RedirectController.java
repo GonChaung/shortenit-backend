@@ -18,7 +18,7 @@ public class RedirectController {
      * Redirect to original URL and track analytics
      * GET /{shortCode}
      */
-    @GetMapping("/{shortCode}")
+    @GetMapping("/s/{shortCode}")
     public RedirectView redirect(@PathVariable String shortCode, HttpServletRequest request) {
         String originalUrl = urlService.getOriginalUrl(shortCode, request);
         RedirectView redirectView = new RedirectView();

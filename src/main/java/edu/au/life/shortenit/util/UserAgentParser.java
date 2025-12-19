@@ -24,7 +24,7 @@ public class UserAgentParser {
             return "tablet";
         }
 
-        return "Desktop";
+        return "desktop";
     }
 
     // browser type

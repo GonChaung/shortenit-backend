@@ -1,7 +1,9 @@
 package edu.au.life.shortenit.service;
 
+import edu.au.life.shortenit.dto.GeoLocation;
 import edu.au.life.shortenit.dto.UrlResponse;
 import edu.au.life.shortenit.dto.UrlShortenRequest;
+import edu.au.life.shortenit.dto.UrlWithAnalyticsResponse;
 import edu.au.life.shortenit.exception.CustomAliasAlreadyExistsException;
 import edu.au.life.shortenit.exception.UrlNotFoundException;
 import edu.au.life.shortenit.entity.Url;
@@ -12,12 +14,17 @@ import edu.au.life.shortenit.util.UserAgentParser;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +33,7 @@ public class UrlService {
 
     private final UrlRepository urlRepository;
     private final UrlClickRepository urlClickRepository;
-    private final GeoIpService geoIpService;
+    private final LocalGeoIpService localGeoIpService;
     private final UserAgentParser userAgentParser;
 
     @Value("${app.base-url}")
@@ -96,7 +103,7 @@ public class UrlService {
         click.setIpAddress(ipAddress);
 
         // Get geographical data
-        GeoIpService.GeoLocation geoLocation = geoIpService.getGeoLocation(ipAddress);
+        GeoLocation geoLocation = localGeoIpService.getLocation(ipAddress);
         click.setCountry(geoLocation.getCountry());
         click.setCity(geoLocation.getCity());
 
@@ -184,11 +191,102 @@ public class UrlService {
                 .id(url.getId())
                 .originalUrl(url.getOriginalUrl())
                 .shortCode(url.getShortCode())
-                .shortUrl(baseUrl + "/" + url.getShortCode())
+                .shortUrl(baseUrl + "/s/" + url.getShortCode())
                 .createdAt(url.getCreatedAt())
                 .expiresAt(url.getExpiresAt())
                 .clickCount(url.getClickCount())
                 .customAlias(url.getCustomAlias())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UrlWithAnalyticsResponse> getAllUrlsWithAnalytics(Pageable pageable) {
+        Page<Url> urlPage = urlRepository.findAll(pageable);
+        return urlPage.map(url -> {
+            UrlWithAnalyticsResponse.AnalyticsSummary summary = getAnalyticsSummary(url);
+
+            return UrlWithAnalyticsResponse.builder()
+                    .shortCode(url.getShortCode())
+                    .originalUrl(url.getOriginalUrl())
+                    .customAlias(url.getCustomAlias())
+                    .clickCount(url.getClickCount())
+                    .createdAt(url.getCreatedAt())
+                    .expiresAt(url.getExpiresAt())
+                    .isExpired(url.getExpiresAt() != null && url.getExpiresAt().isBefore(LocalDateTime.now()))
+                    .analyticsSummary(summary)
+                    .build();
+
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UrlWithAnalyticsResponse> getRecentUrlsWithAnalytics(Pageable pageable) {
+        return getAllUrlsWithAnalytics(pageable);
+    }
+
+    private UrlWithAnalyticsResponse.AnalyticsSummary getAnalyticsSummary(Url url) {
+        List<UrlClick> clicks = urlClickRepository.findByUrlOrderByClickedAtDesc(url);
+
+        if (clicks.isEmpty()) {
+            return UrlWithAnalyticsResponse.AnalyticsSummary.builder()
+                    .totalClicks(0L)
+                    .lastClickedAt(null)
+                    .topCountry(null)
+                    .topCountryClicks(0L)
+                    .topDeviceType(null)
+                    .topDeviceClicks(0L)
+                    .clicksToday(0L)
+                    .clicksThisWeek(0L)
+                    .build();
+        }
+
+        LocalDateTime lastClickedAt = clicks.get(0).getClickedAt();
+
+        // Top country
+        Map<String, Long> countryMap = clicks.stream()
+                .filter(click -> click.getCountry() != null)
+                .collect(Collectors.groupingBy(UrlClick::getCountry, Collectors.counting()));
+
+        Map.Entry<String, Long> topCountryEntry = countryMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .orElse(null);
+
+        String topCountry = topCountryEntry != null ? topCountryEntry.getKey() : null;
+        Long topCountryClicks = topCountryEntry != null ? topCountryEntry.getValue() : 0L;
+
+        // Top device
+        Map<String, Long> deviceMap = clicks.stream()
+                .filter(click -> click.getDeviceType() != null)
+                .collect(Collectors.groupingBy(UrlClick::getDeviceType, Collectors.counting()));
+
+        Map.Entry<String, Long> topDeviceEntry = deviceMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .orElse(null);
+
+        String topDeviceType = topDeviceEntry != null ? topDeviceEntry.getKey() : null;
+        Long topDeviceClicks = topDeviceEntry != null ? topDeviceEntry.getValue() : 0L;
+
+        // Clicks today
+        LocalDateTime startOfToday = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        Long clicksToday = clicks.stream()
+                .filter(click -> click.getClickedAt().isAfter(startOfToday))
+                .count();
+
+        // Clicks this week
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
+        Long clicksThisWeek = clicks.stream()
+                .filter(click -> click.getClickedAt().isAfter(oneWeekAgo))
+                .count();
+
+        return UrlWithAnalyticsResponse.AnalyticsSummary.builder()
+                .totalClicks((long) clicks.size())
+                .lastClickedAt(lastClickedAt)
+                .topCountry(topCountry)
+                .topCountryClicks(topCountryClicks)
+                .topDeviceType(topDeviceType)
+                .topDeviceClicks(topDeviceClicks)
+                .clicksToday(clicksToday)
+                .clicksThisWeek(clicksThisWeek)
                 .build();
     }
 }

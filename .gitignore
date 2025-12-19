@@ -40,3 +40,6 @@ docker-compose.yml
 # Application properties (contains sensitive data)
 src/main/resources/application.properties
 src/main/resources/application-*.properties
+
+#big file local geoip db
+src/main/resources/geoip/*.mmdb
