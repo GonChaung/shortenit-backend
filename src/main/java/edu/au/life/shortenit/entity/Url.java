@@ -1,7 +1,10 @@
 package edu.au.life.shortenit.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -20,11 +23,18 @@ public class Url {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable=false)
+    private User user;
+
     @Column(nullable = false, length = 2048)
     private String originalUrl;
 
     @Column(nullable = false, unique = true, length = 10)
     private String shortCode;
+
+    @Column(nullable = false, length = 200)
+    private String title;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
