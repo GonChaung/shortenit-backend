@@ -20,6 +20,9 @@ public class UrlWithAnalyticsResponse {
     private LocalDateTime expiresAt;
     private Boolean isExpired;
     private AnalyticsSummary analyticsSummary;
+    private String title;
+    private String ownerName;
+    private String ownerEmail;
 
     @Data
     @Builder
