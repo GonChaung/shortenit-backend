@@ -42,7 +42,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Skip JWT validation for public endpoints
         if (path.startsWith("/s/") ||
-                path.startsWith("/api/auth/") ||
+                path.startsWith("/api/auth/oauth2/") ||
+                path.startsWith("/api/auth/refresh") ||
                 path.startsWith("/oauth2/") ||
                 path.startsWith("/login/oauth2/code/")) {
             filterChain.doFilter(request, response);

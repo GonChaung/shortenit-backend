@@ -76,6 +76,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**").permitAll()
                         .requestMatchers("/login/**").permitAll()
                         .requestMatchers("/api/auth/oauth2/**").permitAll()
+                        .requestMatchers("/api/auth/refresh").permitAll()
 
                         // API endpoints - REQUIRE AUTH (API Key or JWT)
                         .requestMatchers("/api/**").authenticated()

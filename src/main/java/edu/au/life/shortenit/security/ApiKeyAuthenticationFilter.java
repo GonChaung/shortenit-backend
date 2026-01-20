@@ -61,7 +61,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         // Skip API key validation for public endpoints
         if (path.startsWith("/s/") ||
-                path.startsWith("/api/auth/") ||
+                path.startsWith("/api/auth/oauth2/") ||
+                path.startsWith("/api/auth/refresh") ||
                 path.startsWith("/oauth2/") ||
                 path.startsWith("/login/") ||
                 path.startsWith("/actuator/") ||
