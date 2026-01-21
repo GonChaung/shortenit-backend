@@ -3,6 +3,7 @@ package edu.au.life.shortenit.service;
 import edu.au.life.shortenit.dto.AnalyticsResponse;
 import edu.au.life.shortenit.entity.Url;
 import edu.au.life.shortenit.entity.UrlClick;
+import edu.au.life.shortenit.entity.User;
 import edu.au.life.shortenit.exception.UrlNotFoundException;
 import edu.au.life.shortenit.repository.UrlClickRepository;
 import edu.au.life.shortenit.repository.UrlRepository;
@@ -21,9 +22,15 @@ public class AnalyticsService {
     private final UrlRepository urlRepository;
     private final UrlClickRepository urlClickRepository;
 
-    public AnalyticsResponse getAnalytics(String shortCode) {
+    public AnalyticsResponse getAnalytics(String shortCode, User user) {
         Url url = urlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new UrlNotFoundException("Short Url not found " + shortCode));
+                .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
+
+        // Authorization check - user must own the URL or be admin
+        if (!url.getUser().getId().equals(user.getId()) &&
+                !user.getRole().equals(User.Role.ADMIN)) {
+            throw new UrlNotFoundException("Short URL not found: " + shortCode);
+        }
 
         List<UrlClick> clicks = urlClickRepository.findByUrlOrderByClickedAtDesc(url);
 
@@ -200,9 +207,15 @@ public class AnalyticsService {
                 .collect(Collectors.toList());
     }
 
-    public AnalyticsResponse getAnalyticsByDateRange(String shortCode, LocalDateTime start, LocalDateTime end) {
+    public AnalyticsResponse getAnalyticsByDateRange(String shortCode, LocalDateTime start, LocalDateTime end, User user) {
         Url url = urlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new UrlNotFoundException("Short Url not found " + shortCode));
+                .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
+
+        // Authorization check - user must own the URL or be admin
+        if (!url.getUser().getId().equals(user.getId()) &&
+                !user.getRole().equals(User.Role.ADMIN)) {
+            throw new UrlNotFoundException("Short URL not found: " + shortCode);
+        }
 
         List<UrlClick> allClicks = urlClickRepository.findByUrlOrderByClickedAtDesc(url);
         List<UrlClick> filteredClicks = allClicks.stream()

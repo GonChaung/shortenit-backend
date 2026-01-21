@@ -8,6 +8,7 @@ import edu.au.life.shortenit.service.RefreshTokenService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
@@ -19,6 +20,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "spring.security.oauth2.client.registration.microsoft.client-id")
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -67,18 +69,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             name = oAuth2User.getAttribute("displayName");
         }
 
-        System.out.println("=".repeat(60));
-        System.out.println("🔐 OAuth2 Login Attempt");
-        System.out.println("   Microsoft ID: " + microsoftId);
-        System.out.println("   Email: " + email);
-        System.out.println("   Name: " + name);
+        log.info("OAuth2 login attempt for email: {}", email);
 
         // VALIDATE EMAIL DOMAIN (University only!)
         if (email == null || !email.endsWith("@" + allowedEmailDomain)) {
-            System.out.println("❌ REJECTED: Email domain not allowed");
-            System.out.println("   Required: @" + allowedEmailDomain);
-            System.out.println("   Got: " + email);
-            System.out.println("=".repeat(60));
+            log.warn("OAuth2 login rejected: email domain not allowed. Required: @{}, Got: {}", allowedEmailDomain, email);
 
             // Redirect to error page with message
             String errorUrl = UriComponentsBuilder.fromUriString(baseUrl + "/oauth2/error.html")
@@ -99,14 +94,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Find or create user
         User user = userRepository.findByMicrosoftId(finalMicrosoftId)
                 .orElseGet(() -> {
-                    System.out.println("👤 Creating new user...");
+                    log.info("Creating new user for email: {}", finalEmail);
                     User newUser = new User();
                     newUser.setMicrosoftId(finalMicrosoftId);
                     newUser.setEmail(finalEmail);
                     newUser.setName(finalName);
                     newUser.setRole(User.Role.USER);
                     User saved = userRepository.save(newUser);
-                    System.out.println("✅ User created with ID: " + saved.getId());
+                    log.info("User created with ID: {}", saved.getId());
                     return saved;
                 });
 
@@ -118,12 +113,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
-        System.out.println("✅ OAuth2 login successful!");
-        System.out.println("   User ID: " + user.getId());
-        System.out.println("   Role: " + user.getRole());
-        System.out.println("   Access Token: " + accessToken.substring(0, 30) + "...");
-        System.out.println("   Refresh Token: " + refreshToken.getToken());
-        System.out.println("=".repeat(60));
+        log.info("OAuth2 login successful for user ID: {}, role: {}", user.getId(), user.getRole());
 
         // Build redirect URL with tokens
         String targetUrl = UriComponentsBuilder.fromUriString(baseUrl + "/oauth2/success.html")

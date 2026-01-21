@@ -5,6 +5,7 @@ import edu.au.life.shortenit.entity.User;
 import edu.au.life.shortenit.exception.ResourceNotFoundException;
 import edu.au.life.shortenit.repository.RefreshTokenRepository;
 import edu.au.life.shortenit.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class RefreshTokenService {
 
@@ -39,6 +41,7 @@ public class RefreshTokenService {
     /**
      * Create a new refresh token for user
      */
+    @Transactional
     public RefreshToken createRefreshToken(Long userId) {
         // Find user first
         User user = userRepository.findById(userId)
@@ -65,9 +68,7 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.isExpired()) {
             refreshTokenRepository.delete(token);
-            throw new RuntimeException(
-                    "Refresh token has expired. Please login again."
-            );
+            throw new ResourceNotFoundException("Refresh token has expired. Please login again.");
         }
         return token;
     }
@@ -116,6 +117,6 @@ public class RefreshTokenService {
     public void cleanupExpiredTokens() {
         LocalDateTime now = LocalDateTime.now();
         refreshTokenRepository.deleteExpired(now);
-        System.out.println("🧹 Cleaned up expired refresh tokens at: " + now);
+        log.info("Cleaned up expired refresh tokens at: {}", now);
     }
 }

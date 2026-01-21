@@ -1,10 +1,13 @@
 package edu.au.life.shortenit.controller;
 
 import edu.au.life.shortenit.dto.AnalyticsResponse;
+import edu.au.life.shortenit.entity.User;
 import edu.au.life.shortenit.service.AnalyticsService;
+import edu.au.life.shortenit.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -17,18 +20,22 @@ public class AnalyticsController {
     private final AnalyticsService analyticsService;
 
     @GetMapping("/{shortCode}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AnalyticsResponse> getAnalytics(@PathVariable String shortCode) {
-        AnalyticsResponse analytics = analyticsService.getAnalytics(shortCode);
+        User currentUser = SecurityUtils.getCurrentUser();
+        AnalyticsResponse analytics = analyticsService.getAnalytics(shortCode, currentUser);
         return ResponseEntity.ok(analytics);
     }
 
     @GetMapping("/{shortCode}/range")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AnalyticsResponse> getAnalyticsByDateRange(
             @PathVariable String shortCode,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
 
-        AnalyticsResponse analytics = analyticsService.getAnalyticsByDateRange(shortCode, start, end);
+        User currentUser = SecurityUtils.getCurrentUser();
+        AnalyticsResponse analytics = analyticsService.getAnalyticsByDateRange(shortCode, start, end, currentUser);
         return ResponseEntity.ok(analytics);
     }
 }

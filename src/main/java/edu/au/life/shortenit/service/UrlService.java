@@ -244,13 +244,13 @@ public class UrlService {
             return UrlWithAnalyticsResponse.builder()
                     .shortCode(url.getShortCode())
                     .originalUrl(url.getOriginalUrl())
-                    .title(url.getTitle()) // error
+                    .title(url.getTitle())
                     .customAlias(url.getCustomAlias())
                     .clickCount(url.getClickCount())
                     .createdAt(url.getCreatedAt())
                     .expiresAt(url.getExpiresAt())
                     .isExpired(url.getExpiresAt() != null && url.getExpiresAt().isBefore(LocalDateTime.now()))
-                    .ownerName(url.getUser().getName()) // error
+                    .ownerName(url.getUser().getName())
                     .ownerEmail(url.getUser().getEmail())
                     .analyticsSummary(summary)
                     .build();

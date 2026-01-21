@@ -1,6 +1,8 @@
 package edu.au.life.shortenit.util;
 
 import edu.au.life.shortenit.entity.User;
+import edu.au.life.shortenit.exception.ResourceNotFoundException;
+import edu.au.life.shortenit.exception.UnauthorizedException;
 import edu.au.life.shortenit.repository.UserRepository;
 import edu.au.life.shortenit.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +24,7 @@ public class SecurityUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Not authenticated");
+            throw new UnauthorizedException("Not authenticated");
         }
 
         Object details = authentication.getDetails();
@@ -31,11 +33,15 @@ public class SecurityUtils {
             JwtAuthenticationFilter.UserPrincipal principal =
                     (JwtAuthenticationFilter.UserPrincipal) details;
 
+            if (userRepository == null) {
+                throw new IllegalStateException("SecurityUtils not properly initialized");
+            }
+
             return userRepository.findById(principal.getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         }
 
-        throw new RuntimeException("Invalid authentication");
+        throw new UnauthorizedException("Invalid authentication");
     }
 
     public static Long getCurrentUserId() {

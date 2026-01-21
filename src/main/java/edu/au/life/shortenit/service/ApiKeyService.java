@@ -4,6 +4,8 @@ import edu.au.life.shortenit.dto.ApiKeyRequest;
 import edu.au.life.shortenit.dto.ApiKeyResponse;
 import edu.au.life.shortenit.entity.ApiKey;
 import edu.au.life.shortenit.entity.User;
+import edu.au.life.shortenit.exception.ForbiddenException;
+import edu.au.life.shortenit.exception.ResourceNotFoundException;
 import edu.au.life.shortenit.repository.ApiKeyRepository;
 import edu.au.life.shortenit.util.ApiKeyGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,11 +74,11 @@ public class ApiKeyService {
     @Transactional
     public void deleteApiKey(User user, Long apiKeyId) {
         ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
-                .orElseThrow(() -> new RuntimeException("API key not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("API key not found"));
 
         // Check ownership
         if (!apiKey.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("Forbidden");
+            throw new ForbiddenException("You do not have permission to delete this API key");
         }
 
         apiKeyRepository.delete(apiKey);
@@ -87,7 +89,7 @@ public class ApiKeyService {
                 .id(apiKey.getId())
                 .name(apiKey.getName())
                 .apiKey(null)
-                .maskedKey("***" + apiKey.getKeyHash().substring(Math.max(0, apiKey.getKeyHash().length() - 4)))
+                .maskedKey("sk_live_***" + apiKey.getId())
                 .scopes(apiKey.getScopes())
                 .expiresAt(apiKey.getExpiresAt())
                 .lastUsedAt(apiKey.getLastUsedAt())

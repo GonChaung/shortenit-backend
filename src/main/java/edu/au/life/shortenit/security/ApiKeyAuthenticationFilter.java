@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,6 +25,7 @@ import java.util.List;
  * ApiKeyAuthenticationFilter - FINAL WORKING VERSION
  * Uses Spring's PasswordEncoder instead of BCrypt directly
  */
+@Slf4j
 @Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
@@ -57,7 +59,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        System.out.println("🔍 [ApiKeyFilter] Processing: " + request.getMethod() + " " + path);
+        log.debug("Processing: {} {}", request.getMethod(), path);
 
         // Skip API key validation for public endpoints
         if (path.startsWith("/s/") ||
@@ -66,40 +68,34 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/oauth2/") ||
                 path.startsWith("/login/") ||
                 path.startsWith("/actuator/") ||
-                path.startsWith("/test/") ||  // Allow test endpoint
+                path.startsWith("/test/") ||
                 path.equals("/error")) {
-            System.out.println("✅ [ApiKeyFilter] Public endpoint - skipping");
+            log.debug("Public endpoint - skipping API key validation");
             filterChain.doFilter(request, response);
             return;
         }
 
         final String apiKeyHeader = request.getHeader("X-API-Key");
 
-        System.out.println("🔑 [ApiKeyFilter] X-API-Key header: " + (apiKeyHeader != null ? "PRESENT ('" + apiKeyHeader + "')" : "MISSING"));
+        log.debug("X-API-Key header: {}", apiKeyHeader != null ? "PRESENT" : "MISSING");
 
         if (apiKeyHeader == null || apiKeyHeader.isEmpty()) {
-            System.out.println("⚠️  [ApiKeyFilter] No API key - continuing to next filter");
+            log.debug("No API key - continuing to next filter");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            System.out.println("🔍 [ApiKeyFilter] Checking API key against database...");
+            log.debug("Checking API key against database...");
 
             // Get all API keys and check with PasswordEncoder
             List<ApiKey> allKeys = getApiKeyRepository().findAllWithUser();
-            System.out.println("📊 [ApiKeyFilter] Found " + allKeys.size() + " API keys in database");
+            log.debug("Found {} API keys in database", allKeys.size());
 
             ApiKey matchedKey = null;
 
             for (ApiKey key : allKeys) {
-                System.out.println("🔐 [ApiKeyFilter] Checking key ID " + key.getId());
-                System.out.println("    Plain text: '" + apiKeyHeader + "'");
-                System.out.println("    Hash from DB: " + key.getKeyHash());
-
                 boolean matches = getPasswordEncoder().matches(apiKeyHeader, key.getKeyHash());
-                System.out.println("    Result: " + (matches ? "✅ MATCH!" : "❌ no match"));
-
                 if (matches) {
                     matchedKey = key;
                     break;
@@ -107,12 +103,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             }
 
             if (matchedKey != null) {
-                System.out.println("✅ [ApiKeyFilter] API key validated! User ID: " + matchedKey.getUser().getId());
+                log.debug("API key validated for user ID: {}", matchedKey.getUser().getId());
 
                 // Check expiration
                 if (matchedKey.getExpiresAt() != null &&
                         matchedKey.getExpiresAt().isBefore(LocalDateTime.now())) {
-                    System.out.println("❌ [ApiKeyFilter] API key expired!");
+                    log.debug("API key expired");
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -132,17 +128,16 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                System.out.println("✅ [ApiKeyFilter] Authentication set in SecurityContext!");
+                log.debug("Authentication set in SecurityContext");
 
                 // Update last used
                 matchedKey.setLastUsedAt(LocalDateTime.now());
                 getApiKeyRepository().save(matchedKey);
             } else {
-                System.out.println("❌ [ApiKeyFilter] API key NOT found in database!");
+                log.debug("API key not found in database");
             }
         } catch (Exception e) {
-            System.out.println("💥 [ApiKeyFilter] Error: " + e.getMessage());
-            e.printStackTrace();
+            log.error("API key validation error: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
