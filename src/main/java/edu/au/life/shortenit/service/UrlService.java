@@ -152,10 +152,9 @@ public class UrlService {
         return convertToResponse(url);
     }
 
-    public List<UrlResponse> getAllUrls(User user) {
-        return urlRepository.findByUser(user).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+    public Page<UrlResponse> getAllUrls(User user, Pageable pageable) {
+        Page<Url> urlPage = urlRepository.findByUser(user, pageable);
+        return urlPage.map(this::convertToResponse);
     }
 
     @Transactional

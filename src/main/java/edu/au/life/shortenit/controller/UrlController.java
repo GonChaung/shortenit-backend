@@ -36,9 +36,19 @@ public class UrlController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<UrlResponse>> getUserUrls() {
+    public ResponseEntity<Page<UrlResponse>> getUserUrls(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String direction) {
+
         User currentUser = SecurityUtils.getCurrentUser();
-        List<UrlResponse> response = urlService.getAllUrls(currentUser);
+
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("ASC") ?
+                Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+
+        Page<UrlResponse> response = urlService.getAllUrls(currentUser, pageable);
         return ResponseEntity.ok(response);
     }
 
