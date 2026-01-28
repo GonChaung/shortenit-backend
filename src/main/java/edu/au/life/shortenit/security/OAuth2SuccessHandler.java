@@ -35,7 +35,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
-    @Value("${app.frontend-url:}")  // <-- ADD THIS
+    @Value("${app.frontend-url:http://localhost:3000}")  // <-- ADD THIS
     private String frontendUrl;
 
     public OAuth2SuccessHandler(JwtService jwtService,
