@@ -35,6 +35,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
+    @Value("${app.frontend-url:}")  // <-- ADD THIS
+    private String frontendUrl;
+
     public OAuth2SuccessHandler(JwtService jwtService,
                                 RefreshTokenService refreshTokenService,
                                 UserRepository userRepository) {
@@ -75,8 +78,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         if (email == null || !email.endsWith("@" + allowedEmailDomain)) {
             log.warn("OAuth2 login rejected: email domain not allowed. Required: @{}, Got: {}", allowedEmailDomain, email);
 
-            // Redirect to frontend error page
-            String errorUrl = UriComponentsBuilder.fromUriString(baseUrl + "/auth/error")  // ✅ CHANGED
+            // Redirect to error page with message
+            String errorUrl = UriComponentsBuilder.fromUriString(baseUrl + "/oauth2/error.html")
                     .queryParam("error", "invalid_email_domain")
                     .queryParam("message", "Only " + allowedEmailDomain + " emails are allowed")
                     .build()
@@ -115,13 +118,28 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("OAuth2 login successful for user ID: {}, role: {}", user.getId(), user.getRole());
 
-        // Build redirect URL with tokens - REDIRECT TO FRONTEND
-        String targetUrl = UriComponentsBuilder.fromUriString(baseUrl + "/auth/callback")
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken.getToken())
-                .queryParam("user", user.getEmail())
-                .build()
-                .toUriString();
+        // Build redirect URL with tokens
+        String targetUrl;
+
+        // <-- ADD THIS CONDITION
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            // Frontend mode: redirect to frontend
+            targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/auth/callback")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken.getToken())
+                    .queryParam("user", user.getEmail())
+                    .build()
+                    .toUriString();
+            log.info("Redirecting to frontend: {}", frontendUrl);
+        } else {
+            // Test mode: redirect to success.html
+            targetUrl = UriComponentsBuilder.fromUriString(baseUrl + "/oauth2/success.html")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken.getToken())
+                    .queryParam("user", user.getEmail())
+                    .build()
+                    .toUriString();
+        }
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
